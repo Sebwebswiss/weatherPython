@@ -2,31 +2,43 @@ import requests
 
 
 def opisi_vrijeme(kod):
-    """Pretvara weather code u čitljiv opis na hrvatskom"""
+    """Pretvara weather code od 7Timer u čitljiv opis na hrvatskom"""
     opisi = {
-        0: "Vedro",
-        1: "Uglavnom vedro",
-        2: "Djelomično oblačno",
-        3: "Oblačno",
-        45: "Magla",
-        48: "Poledica",
-        51: "Slaba kiša",
-        53: "Umjerena kiša",
-        55: "Jaka kiša",
-        61: "Slaba kiša",
-        63: "Umjerena kiša",
-        65: "Jaka kiša",
-        71: "Snijeg",
-        73: "Umjeren snijeg",
-        75: "Jak snijeg",
-        80: "Pljuskovi",
-        81: "Umjereni pljuskovi",
-        82: "Obilni pljuskovi",
-        95: "Oluja",
-        96: "Oluja sa tučom",
-        99: "Jaka oluja sa tučom",
+        "clearday": "Vedro (dan)",
+        "clearnight": "Vedro (noć)",
+        "pcloudyday": "Djelomično oblačno (dan)",
+        "pcloudynight": "Djelomično oblačno (noć)",
+        "mcloudyday": "Oblačno (dan)",
+        "mcloudynight": "Oblačno (noć)",
+        "cloudy": "Oblačno",
+        "cloudynight": "Oblačno (noć)",
+        "humidday": "Vlažno (dan)",
+        "humidnight": "Vlažno (noć)",
+        "lightrainday": "Slaba kiša (dan)",
+        "lightrainnight": "Slaba kiša (noć)",
+        "oshowerday": "Slabi pljuskovi (dan)",
+        "oshowernight": "Slabi pljuskovi (noć)",
+        "ishowerday": "Pljuskovi (dan)",
+        "ishowernight": "Pljuskovi (noć)",
+        "rainday": "Kiša (dan)",
+        "rainnight": "Kiša (noć)",
+        "lightsnowday": "Slab snijeg (dan)",
+        "lightsnownight": "Slab snijeg (noć)",
+        "snowday": "Snijeg (dan)",
+        "snownight": "Snijeg (noć)",
+        "rainsnowday": "Kiša sa snijegom (dan)",
+        "rainsnownight": "Kiša sa snijegom (noć)",
+        "tsday": "Grmljavina (dan)",
+        "tsnight": "Grmljavina (noć)",
+        "humid": "Vlažno",
+        "lightrain": "Slaba kiša",
+        "lightsnow": "Slab snijeg",
+        "rainsnow": "Kiša sa snijegom",
+        "rain": "Kiša",
+        "snow": "Snijeg",
+        "ts": "Grmljavina",
     }
-    return opisi.get(kod, f"Kod: {kod}")
+    return opisi.get(kod, kod)
 
 
 # Gradovi sa koordinatima (latitude, longitude)
@@ -38,14 +50,12 @@ gradovi = [
 ]
 
 for grad in gradovi:
-    url = "https://api.open-meteo.com/v1/forecast"
+    url = f"https://www.7timer.info/bin/api.pl"
     params = {
-        "latitude": grad["lat"],
-        "longitude": grad["lon"],
-        "current": "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,uv_index",
-        "daily": "temperature_2m_max,temperature_2m_min,weather_code,uv_index_max",
-        "timezone": "auto",
-        "forecast_days": 3
+        "lon": grad["lon"],
+        "lat": grad["lat"],
+        "product": "civil",
+        "output": "json"
     }
     
     odgovor = requests.get(url, params=params)
@@ -53,18 +63,18 @@ for grad in gradovi:
     
     print(f"\n=== {grad['ime']} ===")
     
-    trenutno = podaci["current"]
-    print(f"Trenutno: {trenutno['temperature_2m']}°C")
-    print(f"Osjećaj: {trenutno['apparent_temperature']}°C")
-    print(f"Vlažnost: {trenutno['relative_humidity_2m']}°%")
-    print(f"UV Index: {trenutno['uv_index']}")
-    print(f"Vrijeme: {opisi_vrijeme(trenutno['weather_code'])}")
+    # Trenutno vrijeme (prvi sat)
+    trenutno = podaci["dataseries"][0]
+    print(f"Vrijeme: {opisi_vrijeme(trenutno['weather'])}")
+    print(f"Temperatura: {trenutno['temp2m']}°C")
+    print(f"Vjetar: {trenutno['wind10m']['speed']} m/s ({trenutno['wind10m']['direction']})")
     
-    print("\nPrognoza:")
-    for i in range(len(podaci["daily"]["time"])):
-        datum = podaci["daily"]["time"][i]
-        max_temp = podaci["daily"]["temperature_2m_max"][i]
-        min_temp = podaci["daily"]["temperature_2m_min"][i]
-        uv = podaci["daily"]["uv_index_max"][i]
-        weather = opisi_vrijeme(podaci["daily"]["weather_code"][i])
-        print(f"{datum} - {weather} - Max: {max_temp}°C | Min: {min_temp}°C | UV: {uv}")
+    # Prognoza za sljedećih 24 sata (svaka 3 sata)
+    print("\nPrognoza (svaka 3 sata):")
+    for i in range(min(8, len(podaci["dataseries"]))):
+        podatak = podaci["dataseries"][i]
+        sat = podatak["timepoint"]
+        temp = podatak["temp2m"]
+        weather = opisi_vrijeme(podatak["weather"])
+        vjetar = podatak["wind10m"]["speed"]
+        print(f"  +{sat}h: {weather} | {temp}°C | Vjetar: {vjetar} m/s")
