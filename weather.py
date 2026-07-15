@@ -50,29 +50,42 @@ gradovi = [
 ]
 
 for grad in gradovi:
-    url = f"https://www.7timer.info/bin/api.pl"
-    params = {
+    # 7Timer za vrijeme i prognozu
+    url_7timer = "https://www.7timer.info/bin/api.pl"
+    params_7timer = {
         "lon": grad["lon"],
         "lat": grad["lat"],
         "product": "civil",
         "output": "json"
     }
+    odgovor_7timer = requests.get(url_7timer, params=params_7timer)
+    podaci_7timer = odgovor_7timer.json()
     
-    odgovor = requests.get(url, params=params)
-    podaci = odgovor.json()
+    # Open-Meteo samo za vlažnost zraka
+    url_meteo = "https://api.open-meteo.com/v1/forecast"
+    params_meteo = {
+        "latitude": grad["lat"],
+        "longitude": grad["lon"],
+        "current": "relative_humidity_2m",
+        "timezone": "auto"
+    }
+    odgovor_meteo = requests.get(url_meteo, params=params_meteo)
+    podaci_meteo = odgovor_meteo.json()
+    vlaznost = podaci_meteo["current"]["relative_humidity_2m"]
     
     print(f"\n=== {grad['ime']} ===")
     
     # Trenutno vrijeme (prvi sat)
-    trenutno = podaci["dataseries"][0]
+    trenutno = podaci_7timer["dataseries"][0]
     print(f"Vrijeme: {opisi_vrijeme(trenutno['weather'])}")
     print(f"Temperatura: {trenutno['temp2m']}°C")
+    print(f"Vlažnost zraka: {vlaznost}%")
     print(f"Vjetar: {trenutno['wind10m']['speed']} m/s ({trenutno['wind10m']['direction']})")
     
     # Prognoza za sljedećih 24 sata (svaka 3 sata)
     print("\nPrognoza (svaka 3 sata):")
-    for i in range(min(8, len(podaci["dataseries"]))):
-        podatak = podaci["dataseries"][i]
+    for i in range(min(8, len(podaci_7timer["dataseries"]))):
+        podatak = podaci_7timer["dataseries"][i]
         sat = podatak["timepoint"]
         temp = podatak["temp2m"]
         weather = opisi_vrijeme(podatak["weather"])
